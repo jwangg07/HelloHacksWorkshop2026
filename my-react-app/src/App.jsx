@@ -9,17 +9,32 @@ const types = [
 
 function App() {
   const [selectedType, setSelectedType] = useState('')
+  const [result, setResult] = useState(null)
 
-  function getMatchup(type) {
-    // API CALL WILL GO HERE, AND WE WILL RETURN THE RESPONSE
-    return `Fake API response: You are fighting a ${type}-type Pokémon.`;
+  async function getMatchup(type) {
+    try {
+      const response = await fetch(`http://localhost:5001/api/type/${type.toLowerCase()}`)
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      return { error: error.message }
+    }
   }
 
-  function handleTypeClick(type) {
-    const response = getMatchup(type);
-    setResult(response);
+  async function handleTypeClick(type) {
+    setResult(await getMatchup(type))
   }
 
+  function formatTypes(typeNames) {
+    if (!typeNames?.length) return 'no listed types'
+    if (typeNames.length === 1) return typeNames[0]
+    if (typeNames.length === 2) return `${typeNames[0]} and ${typeNames[1]}`
+    return `${typeNames.slice(0, -1).join(', ')}, and ${typeNames[typeNames.length - 1]}`
+  }
 
   return (
     <main className="min-h-screen bg-[#f7f5ff] px-5 py-10 text-slate-900 sm:py-16">
@@ -45,10 +60,9 @@ function App() {
               className={`rounded-2xl border-2 px-3 py-4 text-sm font-bold transition hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-indigo-100 ${type.color} ${selectedType === type.name ? 'border-indigo-500 ring-4 ring-indigo-100' : 'border-transparent'}`}
               key={type.name}
               onClick={() => {
-                setSelectedType(type.name);
-                handleTypeClick(type.name);
+                setSelectedType(type.name)
+                handleTypeClick(type.name)
               }}
-
               type="button"
             >
               <span className="mb-1 block text-2xl" aria-hidden="true">{type.icon}</span>
@@ -59,6 +73,24 @@ function App() {
         <p className="mt-7 text-center text-sm text-slate-500" aria-live="polite">
           {selectedType ? `You chose ${selectedType}. Let’s find the best counter!` : 'Select a type to get started.'}
         </p>
+        {result && (
+          <div className="mt-5 rounded-2xl bg-slate-50 p-5 text-sm leading-6 text-slate-700">
+            {result.error ? (
+              <p className="text-red-600">We couldn’t load the matchup: {result.error}</p>
+            ) : (
+              <>
+                <p>
+                  <strong className="text-slate-900">Use {selectedType}-type attacks carefully:</strong>{' '}
+                  they deal half damage to {formatTypes(result.half_damage_to)}.
+                </p>
+                <p className="mt-3">
+                  <strong className="text-slate-900">Look out for:</strong>{' '}
+                  {selectedType}-type Pokémon take double damage from {formatTypes(result.double_damage_from)}.
+                </p>
+              </>
+            )}
+          </div>
+        )}
       </section>
     </main>
   )
